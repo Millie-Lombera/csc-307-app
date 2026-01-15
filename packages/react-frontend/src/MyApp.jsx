@@ -3,13 +3,17 @@ import Table from "./Table";
 import Form from "./Form";
 
 function MyApp() {
-  const [characters, setCharaters] = useState([]);
+  const [characters, setCharacters] = useState([]);
   
   function removeOneCharacter(index){
     const updated = characters.filter((character, i) => {
       return i != index;
     });
-    setCharaters(updated);
+    setCharacters(updated);
+  }
+
+  function updateList(person) {
+    setCharacters([...characters, person]);
   }
 
   return (
@@ -18,6 +22,7 @@ function MyApp() {
           characterData = {characters}
           removeCharacter = {removeOneCharacter}
         />
+      <Form handleSubmit = {updateList}/>
     </div>
     );
   }
