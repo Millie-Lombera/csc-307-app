@@ -1,106 +1,72 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
+import mongoose from "mongoose";
 
+import userService from "./services/user-service.js";
+
+dotenv.config();
+
+const { MONGO_CONNECTION_STRING } = process.env;
+
+mongoose.set("debug", true);
+mongoose
+  .connect(MONGO_CONNECTION_STRING + "users") // connect to Db "users"
+  .catch((error) => console.log(error));
 const app = express();
 const port = 8000;
 
 app.use(cors());
 app.use(express.json());
 
-const users = {
-    users_list: [
-      {id: "xyz789", name: "Charlie", job: "Janitor"},
-      {id: "abc123", name: "Mac", job: "Bouncer"},
-      {id: "ppp222", name: "Mac", job: "Professor"},
-      {id: "yat999", name: "Dee", job: "Aspring actress" },
-      {id: "zap555", name: "Dennis", job: "Bartender"}
-     ]
-    };
-
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-const findUserByName = (name) => {
-    return users["users_list"].filter(
-      (user) => user["name"] === name
-    );
-  };
-  
 app.get("/users", (req, res) => {
-    const { name, job } = req.query;
-  
-    if (name && job) {
-      const matches = findUsersByNameAndJob(name, job);
-      res.json(matches);
-    } else {
-      res.json(users);
-    }
-  });
+  const name = req.query["name"];
+  const job = req.query["job"];
+  userService
+    .getUsers(name, job)
+    .then((result) => {
+      res.send({ users_list: result });
+    })
+    .catch((error) => {
+      console.log(error);
+      res.status(500).send("An error ocurred in the server.");
+    });
+});
 
-const findUserById = (id) =>
-    users["users_list"].find((user) => user["id"] === id);
-  
 app.get("/users/:id", (req, res) => {
-    const id = req.params.id
-    let result = findUserById(id);
-    if (result === undefined) {
+  const id = req.params["id"];
+  userService.findUserById(id).then((result) => {
+    if (result === undefined || result === null) {
       res.status(404).send("Resource not found.");
     } else {
-      res.send(result);
+      res.send({ users_list: result });
     }
   });
-
-const findUsersByNameAndJob = (name, job) => {
-    return users.users_list.filter(
-      (u) => u.name === name && u.job === job
-    );
-  };
-
-const addUser = (user) => {
-    users["users_list"].push(user);
-    return user;
-  };
-
-  function generateId() {
-    return Math.random().toString(36).substring(2, 10);
-  }
-
-
-const deleteUserById = (id) => {
-    const idx = users.users_list.findIndex((u) => u.id === id);
-    if (idx === -1) return false;
-    users.users_list.splice(idx, 1); 
-    return true;
-  };
+});
 
 app.delete("/users/:id", (req, res) => {
-    const id = req.params.id;
-    const deleted = deleteUserById(id);
-  
-    if (!deleted) {
+  const id = req.params["id"];
+  userService.removeUser(id).then((result) => {
+    if (result.deletedCount === 0) {
       res.status(404).send("Resource not found.");
     } else {
-      res.status(204).send(); 
+      res.status(204).send();
     }
   });
-  
-  app.post("/users", (req, res) => {
-    const userToAdd = req.body;
-    const newUser = {
-      id: generateId(),
-      name: userToAdd.name,
-      job: userToAdd.job,
-    };
-  
-    addUser(newUser);
-  
-    res.status(201).send(newUser);
+});
+
+app.post("/users", (req, res) => {
+  const user = req.body;
+  userService.addUser(user).then((savedUser) => {
+    if (savedUser) res.status(201).send(savedUser);
+    else res.status(500).end();
   });
-  
+});
 
 app.listen(port, () => {
-  console.log(
-    `Example app listening at http://localhost:${port}`
-  );
+  console.log(`Example app listening at http://localhost:${port}`);
 });
